@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+
+<div class="container">
+    <h1 class="mt-5">Autenticación en el Sistema Tributario</h1>
+    
+    <!-- Formulario de autenticación -->
+    <form action="{% url 'autenticacion' %}" method="post" class="mt-4">
+        {% csrf_token %}
+        <div class="mb-3">
+            <label for="user" class="form-label">Usuario</label>
+            <input type="text" class="form-control" id="user" name="user" placeholder="Ingresa tu usuario" required>
+        </div>
+        <div class="mb-3">
+            <label for="pwd" class="form-label">Contraseña</label>
+            <input type="password" class="form-control" id="pwd" name="pwd" placeholder="Ingresa tu contraseña" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Autenticar</button>
+    </form>
+
+    <!-- Sección para mostrar mensajes de éxito o error -->
+    <div id="response-message" class="mt-4"></div>
+</div>
+<script>
+    // Si quieres mostrar el mensaje de respuesta en tiempo real
+    const responseMessage = document.getElementById('response-message');
+
+    function showResponseMessage(data) {
+        if (data.status === 'success') {
+            responseMessage.innerHTML = `<div class="alert alert-success">Token: ${data.token}</div>`;
+        } else {
+            responseMessage.innerHTML = `<div class="alert alert-danger">Error: ${data.message}</div>`;
+        }
+    }
+</script>
+
+{% endblock content %}

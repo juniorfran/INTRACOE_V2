@@ -1,5 +1,5 @@
 # Cambiar a Python 3.10-slim-bullseye (o Python 3.11)
-FROM python:3.10-bullseye
+FROM python:3.11
 # O usa FROM python:3.11-slim-bullseye para Python 3.11
 
 # Establecer el directorio de trabajo

@@ -35,6 +35,8 @@ CSRF_TRUSTED_ORIGINS = [
     'http://localhost',
     'http://0.0.0.0:8000',
     'http://0.0.0.0',
+    'https://intracoe.incoe.cloud',
+    'http://intracoe.incoe.cloud',
 ]
 
 ## CONFIGURACION DE CORREOS ##############################

@@ -21,31 +21,31 @@
                         <span><strong>Fecha de Pago:</strong></span> <span>{{ boleta.fecha_pago }}</span>
                     </li>
                     <li class="list-group-item d-flex justify-content-between">
-                        <span><strong>Salario Quincenal:</strong></span> <span>{{ salario_quince }}</span>
+                        <span><strong>Salario Quincenal:</strong></span> <span>{{ salario_quince|floatformat:2 }}</span>
                     </li>
                     <li class="list-group-item d-flex justify-content-between">
-                        <span><strong>Días Laborados:</strong></span> <span>{{ boleta.dias_laborados }}</span>
+                        <span><strong>Días Laborados:</strong></span> <span>{{ boleta.dias_laborados|floatformat:2 }}</span>
                     </li>
                     <li class="list-group-item d-flex justify-content-between">
-                        <span><strong>Descuento AFP:</strong></span> <span>{{ boleta.descuento_afp }}</span>
+                        <span><strong>Descuento AFP:</strong></span> <span>{{ boleta.descuento_afp|floatformat:2 }}</span>
                     </li>
                     <li class="list-group-item d-flex justify-content-between">
-                        <span><strong>Descuento ISSS:</strong></span> <span>{{ boleta.descuento_isss }}</span>
+                        <span><strong>Descuento ISSS:</strong></span> <span>{{ boleta.descuento_isss|floatformat:2 }}</span>
                     </li>
                     <li class="list-group-item d-flex justify-content-between">
-                        <span><strong>Descuento Renta:</strong></span> <span>{{ boleta.descuento_renta }}</span>
+                        <span><strong>Descuento Renta:</strong></span> <span>{{ boleta.descuento_renta|floatformat:2 }}</span>
                     </li>
                     <li class="list-group-item d-flex justify-content-between">
-                        <span><strong>Descuentos Externos:</strong></span> <span>{{ boleta.otro_descuento1 }}</span>
+                        <span><strong>Descuentos Externos:</strong></span> <span>{{ boleta.otro_descuento1|floatformat:2 }}</span>
                     </li>
                     <li class="list-group-item d-flex justify-content-between">
-                        <span><strong>Descuentos Internos:</strong></span> <span>{{ boleta.otro_descuento2 }}</span>
+                        <span><strong>Descuentos Internos:</strong></span> <span>{{ boleta.otro_descuento2|floatformat:2 }}</span>
                     </li>
                     <li class="list-group-item d-flex justify-content-between">
-                        <span><strong>Total de Descuentos:</strong></span> <span>{{ boleta.total_descuentos }}</span>
+                        <span><strong>Total de Descuentos:</strong></span> <span>{{ boleta.total_descuentos|floatformat:2 }}</span>
                     </li>
                     <li class="list-group-item d-flex justify-content-between">
-                        <span><strong>Total Pago:</strong></span> <span>{{ boleta.total_pago }}</span>
+                        <span><strong>Total Pago:</strong></span> <span>{{ boleta.total_pago|floatformat:2 }}</span>
                     </li>
                 </ul>
 

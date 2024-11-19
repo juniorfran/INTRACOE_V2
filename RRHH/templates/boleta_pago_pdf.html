@@ -124,7 +124,7 @@
                 <strong>Teléfono:</strong> {{ empleado.num_telefono }}
                 <strong>DUI::</strong> {{ empleado.dui }}<br>
             </ul>
-            <strong>Días Laborados:</strong> {{ boleta.dias_laborados }}
+            <strong>Días Laborados:</strong> {{ boleta.dias_laborados|floatformat:2 }}
             <strong>Periodo:</strong> {{ boleta.fecha_inicio|date:"d-m-y" }} || {{ boleta.fecha_fin|date:"d-m-y" }}<br>
         </div>
     </div>
@@ -138,11 +138,11 @@
             <tr>
                 <td colspan="1">
                     <ul style="list-style: none; padding: 0;">
-                        <li><strong>Salario:</strong> ${{ salario_quince }}</li>
-                        <li><strong>Comisiones:</strong> ${{ boleta.comisiones }}</li>
-                        <li><strong>Viáticos:</strong> ${{ boleta.viaiticos }}</li>
-                        <li><strong>Horas Extras en Feriado:</strong> ${{ boleta.hr_extra_fer }}</li>
-                        <li><strong>Horas Extras Nocturnas en Feriado:</strong> ${{ boleta.hr_extra_fer_noc }}</li>
+                        <li><strong>Salario:</strong> ${{ salario_quince|floatformat:2 }}</li>
+                        <li><strong>Comisiones:</strong> ${{ boleta.comisiones|floatformat:2 }}</li>
+                        <li><strong>Viáticos:</strong> ${{ boleta.viaticos|floatformat:2 }}</li>
+                        <li><strong>Horas Extras en Feriado:</strong> ${{ boleta.hr_extra_fer|floatformat:2 }}</li>
+                        <li><strong>Horas Extras Nocturnas en Feriado:</strong> ${{ boleta.hr_extra_fer_noc|floatformat:2 }}</li>
                         <hr>
                         <strong><h3>Total Ingresos:</h3></strong> <h3>${{  boleta.total_pago  }}</h3>
                     </ul>
@@ -151,13 +151,13 @@
                 <td colspan="1">
                     <ul style="list-style: none; padding: 0;">
                         
-                        <li><strong>Descuento AFP:</strong> ${{ boleta.descuento_afp }}</li>
-                        <li><strong>Descuento ISSS:</strong> ${{ boleta.descuento_isss }}</li>
-                        <li><strong>Descuento Renta:</strong> ${{ boleta.descuento_renta }}</li>
-                        <li><strong>Descuentos Externos:</strong> ${{ boleta.otro_descuento1 }}</li>
-                        <li><strong>Descuentos Internos:</strong> ${{ boleta.otro_descuento2 }}</li>
+                        <li><strong>Descuento AFP:</strong> ${{ boleta.descuento_afp|floatformat:2 }}</li>
+                        <li><strong>Descuento ISSS:</strong> ${{ boleta.descuento_isss|floatformat:2 }}</li>
+                        <li><strong>Descuento Renta:</strong> ${{ boleta.descuento_renta|floatformat:2 }}</li>
+                        <li><strong>Descuentos Externos:</strong> ${{ boleta.otro_descuento1|floatformat:2 }}</li>
+                        <li><strong>Descuentos Internos:</strong> ${{ boleta.otro_descuento2|floatformat:2 }}</li>
                         <hr>
-                        <strong><h3>Total Descuentos:</h3></strong> <h3>${{ boleta.total_descuentos }}</h3>
+                        <strong><h3>Total Descuentos:</h3></strong> <h3>${{ boleta.total_descuentos|floatformat:2 }}</h3>
                     </ul>
                 </td>
             </tr>
@@ -172,7 +172,7 @@
             </td>
             <td style="text-align: center; border: none;">
                 <strong><h3>Total líquido a recibir:</h3></strong>
-                <h1>${{ boleta.liquido_recibir }}</h1>
+                <h1>${{ boleta.liquido_recibir|floatformat:2 }}</h1>
             </td>
         </tr>
     </table>

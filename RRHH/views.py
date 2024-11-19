@@ -1,3 +1,4 @@
+from decimal import Decimal
 from django.core.mail import EmailMessage
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import HttpResponse
@@ -271,29 +272,65 @@ def cargar_boletas(request):
                     try:
                         # Buscar empleado en la base de datos
                         empleado = Empleados.objects.get(codigo_empleado=empleado_codigo)
-                        
-                        # Crear la boleta de pago
-                        Boleta_pago.objects.create(
-                            fecha_pago=row[1],
-                            fecha_inicio=row[2],
-                            fecha_fin=row[3],
-                            dias_laborados=row[4],
-                            empleado=empleado,
-                            descuento_afp=row[5],
-                            descuento_isss=row[6],
-                            descuento_renta=row[7],
-                            otro_descuento1=row[8],
-                            otro_descuento2=row[9],
-                            total_descuentos=row[10],
-                            comisiones=row[11],
-                            viaticos=row[12],
-                            hr_extra_fer=row[13],
-                            hr_extra_fer_noc=row[14],
-                            total_pago=row[15],
-                            liquido_recibir=row[16],
-                        )
+
+                        # Convertir valores numéricos a decimal o manejar valores nulos
+                        def to_decimal(value):
+                            if value is None:
+                                return 0  # Ajusta según tu lógica de negocio
+                            try:
+                                return Decimal(value)
+                            except (ValueError, TypeError):
+                                raise ValueError(f"Valor inválido para decimal en la fila {fila_actual}: {value}")
+
+                        # Verificar si ya existe una boleta con la misma fecha de pago para este empleado
+                        fecha_pago = row[1]
+                        boleta_existente = Boleta_pago.objects.filter(empleado=empleado, fecha_pago=fecha_pago).first()
+
+                        if boleta_existente:
+                            # Actualizar la boleta existente
+                            boleta_existente.fecha_inicio = row[2]
+                            boleta_existente.fecha_fin = row[3]
+                            boleta_existente.dias_laborados = to_decimal(row[4])
+                            boleta_existente.descuento_afp = to_decimal(row[5])
+                            boleta_existente.descuento_isss = to_decimal(row[6])
+                            boleta_existente.descuento_renta = to_decimal(row[7])
+                            boleta_existente.otro_descuento1 = to_decimal(row[8])
+                            boleta_existente.otro_descuento2 = to_decimal(row[9])
+                            boleta_existente.total_descuentos = to_decimal(row[10])
+                            boleta_existente.comisiones = to_decimal(row[11])
+                            boleta_existente.viaticos = to_decimal(row[12])
+                            boleta_existente.hr_extra_fer = to_decimal(row[13])
+                            boleta_existente.hr_extra_fer_noc = to_decimal(row[14])
+                            boleta_existente.total_pago = to_decimal(row[15])
+                            boleta_existente.liquido_recibir = to_decimal(row[16])
+                            boleta_existente.save()
+                            messages.info(request, f"Boleta del empleado {empleado_codigo} actualizada correctamente (fila {fila_actual}).")
+                        else:
+                            # Crear una nueva boleta de pago
+                            Boleta_pago.objects.create(
+                                fecha_pago=fecha_pago,
+                                fecha_inicio=row[2],
+                                fecha_fin=row[3],
+                                dias_laborados=to_decimal(row[4]),
+                                empleado=empleado,
+                                descuento_afp=to_decimal(row[5]),
+                                descuento_isss=to_decimal(row[6]),
+                                descuento_renta=to_decimal(row[7]),
+                                otro_descuento1=to_decimal(row[8]),
+                                otro_descuento2=to_decimal(row[9]),
+                                total_descuentos=to_decimal(row[10]),
+                                comisiones=to_decimal(row[11]),
+                                viaticos=to_decimal(row[12]),
+                                hr_extra_fer=to_decimal(row[13]),
+                                hr_extra_fer_noc=to_decimal(row[14]),
+                                total_pago=to_decimal(row[15]),
+                                liquido_recibir=to_decimal(row[16]),
+                            )
+
                     except Empleados.DoesNotExist:
                         messages.warning(request, f"No se cargó la boleta del empleado {empleado_codigo} porque no se encontró en la base de datos (fila {fila_actual}).")
+                    except ValueError as ve:
+                        messages.error(request, f"Error al procesar valores numéricos en la fila {fila_actual}: {ve}")
                     except Exception as e:
                         messages.error(request, f"Error al procesar la fila {fila_actual}: {e}")
                         continue
@@ -309,6 +346,8 @@ def cargar_boletas(request):
     else:
         form = UploadFileForm()
     return render(request, 'cargar_boletas.html', {'form': form})
+
+
 
 
 

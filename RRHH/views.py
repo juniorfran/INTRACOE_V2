@@ -255,42 +255,61 @@ def cargar_boletas(request):
             try:
                 workbook = openpyxl.load_workbook(archivo)
                 sheet = workbook.active
+                fila_actual = 1  # Para rastrear la fila actual
 
-                for row in sheet.iter_rows(min_row=2, values_only=True):  # Ignorar encabezado
+                for row in sheet.iter_rows(min_row=1, values_only=True):  # Leer desde la primera fila
+                    fila_actual += 1  # Incrementar contador de filas
                     empleado_codigo = row[0]
-                    empleado = Empleados.objects.get(codigo_empleado=empleado_codigo)
 
-                    Boleta_pago.objects.create(
-                        fecha_pago=row[1],
-                        fecha_inicio=row[2],
-                        fecha_fin=row[3],
-                        dias_laborados=row[4],
-                        empleado=empleado,
-                        descuento_afp=row[5],
-                        descuento_isss=row[6],
-                        descuento_renta=row[7],
-                        otro_descuento1=row[8],
-                        otro_descuento2=row[9],
-                        total_descuentos=row[10],
-                        comisiones=row[11],
-                        biaticos=row[12],
-                        hr_extra_fer=row[13],
-                        hr_extra_fer_noc=row[14],
-                        total_pago=row[15],
-                        liquido_recibir=row[16],
+                    # Validar código de empleado
+                    if not empleado_codigo:
+                        messages.warning(request, f"El código de empleado está vacío en la fila {fila_actual}.")
+                        continue
 
-                    )
+                    empleado_codigo = str(empleado_codigo).strip()
+
+                    try:
+                        # Buscar empleado en la base de datos
+                        empleado = Empleados.objects.get(codigo_empleado=empleado_codigo)
+                        
+                        # Crear la boleta de pago
+                        Boleta_pago.objects.create(
+                            fecha_pago=row[1],
+                            fecha_inicio=row[2],
+                            fecha_fin=row[3],
+                            dias_laborados=row[4],
+                            empleado=empleado,
+                            descuento_afp=row[5],
+                            descuento_isss=row[6],
+                            descuento_renta=row[7],
+                            otro_descuento1=row[8],
+                            otro_descuento2=row[9],
+                            total_descuentos=row[10],
+                            comisiones=row[11],
+                            viaticos=row[12],
+                            hr_extra_fer=row[13],
+                            hr_extra_fer_noc=row[14],
+                            total_pago=row[15],
+                            liquido_recibir=row[16],
+                        )
+                    except Empleados.DoesNotExist:
+                        messages.warning(request, f"No se cargó la boleta del empleado {empleado_codigo} porque no se encontró en la base de datos (fila {fila_actual}).")
+                    except Exception as e:
+                        messages.error(request, f"Error al procesar la fila {fila_actual}: {e}")
+                        continue
 
                 messages.success(request, "Las boletas de pago se han cargado exitosamente.")
                 return redirect('boleta_pago_list')
 
             except Exception as e:
                 messages.error(request, f"Hubo un error al procesar el archivo: {e}")
+                return redirect('boleta_pago_list')
         else:
             messages.error(request, "Por favor seleccione un archivo válido.")
     else:
         form = UploadFileForm()
     return render(request, 'cargar_boletas.html', {'form': form})
+
 
 
 ###############################################################################################

@@ -45,8 +45,8 @@ class Boleta_pago (models.Model):
     otro_descuento1 = models.IntegerField()
     otro_descuento2 = models.IntegerField()
     total_descuentos = models.IntegerField()
-    hr_extra_di = models.IntegerField()
-    hr_extra_noc  = models.IntegerField()
+    comisiones = models.IntegerField()
+    biaticos  = models.IntegerField()
     hr_extra_fer  = models.IntegerField()
     hr_extra_fer_noc  = models.IntegerField()
     total_pago = models.IntegerField()
@@ -58,5 +58,4 @@ class Boleta_pago (models.Model):
 
     def __str__(self):
         return self.fecha_pago
-
 

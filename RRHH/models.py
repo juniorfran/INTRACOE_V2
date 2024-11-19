@@ -33,29 +33,28 @@ class Empleados (models.Model):
 
     
 
-class Boleta_pago (models.Model):
+class Boleta_pago(models.Model):
     fecha_pago = models.DateField()
     fecha_inicio = models.DateField()
-    fecha_fin  = models.DateField()
-    dias_laborados  = models.IntegerField()
+    fecha_fin = models.DateField()
+    dias_laborados = models.DecimalField(max_digits=5, decimal_places=2)  # Hasta 999.99 días
     empleado = models.ForeignKey(Empleados, on_delete=models.CASCADE)
-    descuento_afp = models.IntegerField()
-    descuento_isss = models.IntegerField()
-    descuento_renta = models.IntegerField()
-    otro_descuento1 = models.IntegerField()
-    otro_descuento2 = models.IntegerField()
-    total_descuentos = models.IntegerField()
-    comisiones = models.IntegerField()
-    viaticos  = models.IntegerField()
-    hr_extra_fer  = models.IntegerField()
-    hr_extra_fer_noc  = models.IntegerField()
-    total_pago = models.IntegerField()
-    liquido_recibir = models.IntegerField()
+    descuento_afp = models.DecimalField(max_digits=10, decimal_places=2)  # Hasta 99999999.99
+    descuento_isss = models.DecimalField(max_digits=10, decimal_places=2)
+    descuento_renta = models.DecimalField(max_digits=10, decimal_places=2)
+    otro_descuento1 = models.DecimalField(max_digits=10, decimal_places=2)
+    otro_descuento2 = models.DecimalField(max_digits=10, decimal_places=2)
+    total_descuentos = models.DecimalField(max_digits=10, decimal_places=2)
+    comisiones = models.DecimalField(max_digits=10, decimal_places=2)
+    viaticos = models.DecimalField(max_digits=10, decimal_places=2)
+    hr_extra_fer = models.DecimalField(max_digits=10, decimal_places=2)
+    hr_extra_fer_noc = models.DecimalField(max_digits=10, decimal_places=2)
+    total_pago = models.DecimalField(max_digits=10, decimal_places=2)
+    liquido_recibir = models.DecimalField(max_digits=10, decimal_places=2)
 
     class Meta:
         verbose_name = "Boleta de pago"
         verbose_name_plural = "Boletas de pago"
 
     def __str__(self):
-        return self.fecha_pago
-
+        return f"{self.fecha_pago}"

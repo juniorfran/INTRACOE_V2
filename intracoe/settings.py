@@ -84,7 +84,6 @@ INSTALLED_APPS = [
     'FE',
     'CONTABILIDAD',
     'INFORMATICA',
-    'rest_framework',
 ]
 
 MIDDLEWARE = [
@@ -139,7 +138,7 @@ DATABASES = {
         'NAME': 'intracoe',
         'USER': 'pordefecto',
         'PASSWORD': 'intracoe',
-        'HOST': '192.168.2.209',  # Dirección IP del servidor PostgreSQL
+        'HOST': '192.168.2.29',  # Dirección IP del servidor PostgreSQL
         'PORT': '5432',           # Puerto predeterminado de PostgreSQL
     },
 

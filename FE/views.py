@@ -1,27 +1,27 @@
 import requests
-from rest_framework.response import Response
-from rest_framework.views import APIView
-from rest_framework import status
-from .serializers import AuthResponseSerializer
+from django.shortcuts import render
+from django.http import JsonResponse
 
-class AutenticacionAPIView(APIView):
+def autenticacion(request):
     # Límite de intentos de autenticación permitidos
     max_attempts = 2
+    
+    # Inicializar contador de intentos en la sesión si no existe
+    if "auth_attempts" not in request.session:
+        request.session["auth_attempts"] = 0
+    
+    # Verificar si se alcanzó el máximo de intentos permitidos
+    if request.session["auth_attempts"] >= max_attempts:
+        print("Se alcanzó el límite de intentos permitidos")
+        return JsonResponse({
+            "status": "error",
+            "message": "Se alcanzó el límite de intentos de autenticación permitidos",
+        }, status=403)  # Código 403: Forbidden
 
-    def post(self, request):
-        # Inicializar contador de intentos en la sesión si no existe
-        if "auth_attempts" not in request.session:
-            request.session["auth_attempts"] = 0
-        
-        # Verificar si se alcanzó el máximo de intentos permitidos
-        if request.session["auth_attempts"] >= self.max_attempts:
-            return Response({
-                "status": "error",
-                "message": "Se alcanzó el límite de intentos de autenticación permitidos",
-            }, status=status.HTTP_403_FORBIDDEN)  # Código 403: Forbidden
-
-        user = request.data.get("user")  # Usuario enviado desde el cuerpo de la solicitud
-        pwd = request.data.get("pwd")    # Contraseña enviada desde el cuerpo de la solicitud
+    if request.method == "POST":
+        # Obtener credenciales del formulario
+        user = request.POST.get("user")  # Usuario enviado desde el formulario
+        pwd = request.POST.get("pwd")    # Contraseña enviada desde el formulario
 
         # URL de autenticación
         auth_url = "https://api.dtes.mh.gob.sv/seguridad/auth"
@@ -38,12 +38,21 @@ class AutenticacionAPIView(APIView):
             "pwd": pwd,
         }
 
+        # Imprimir datos de depuración
+        print("URL de autenticación:", auth_url)
+        print("Headers:", headers)
+        print("Datos enviados:", data)
+        print("Intento actual de autenticación:", request.session["auth_attempts"] + 1)
+
         try:
             # Realizar solicitud POST a la URL de autenticación
             response = requests.post(auth_url, headers=headers, data=data)
+            print("Código de respuesta:", response.status_code)
+            print("Respuesta de la API:", response.text)
             
             # Intentar convertir la respuesta en JSON
             response_data = response.json()
+            print("Datos JSON de respuesta:", response_data)
 
             # Incrementar el contador de intentos de autenticación
             request.session["auth_attempts"] += 1
@@ -57,23 +66,34 @@ class AutenticacionAPIView(APIView):
                 roles = response_data["body"].get("roles", [])
                 token_type = response_data.get("tokenType", "Bearer")
 
-                return Response({
+                print("Autenticación exitosa. Token obtenido:", token)
+                print("Roles asignados:", roles)
+                print("Tipo de Token:", token_type)
+
+                # Retornar token y otros detalles al frontend
+                return JsonResponse({
                     "status": "success",
                     "token": f"{token_type} {token}",
                     "roles": roles,
                 })
 
             else:
-                return Response({
+                # Error en autenticación, se suma un intento
+                print("Error en autenticación:", response_data)
+                return JsonResponse({
                     "status": "error",
                     "message": response_data.get("message", "Error en autenticación"),
                     "error": response_data.get("error", "No especificado"),
-                }, status=status.HTTP_400_BAD_REQUEST)
+                }, status=400)
 
         except requests.exceptions.RequestException as e:
             # Error de conexión con el servicio
-            return Response({
+            print("Error de conexión con el servicio de autenticación:", e)
+            return JsonResponse({
                 "status": "error",
                 "message": "Error de conexión con el servicio de autenticación",
                 "details": str(e),
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            }, status=500)
+
+    # Si el método es GET, renderizar el formulario
+    return render(request, "autenticacion.html")

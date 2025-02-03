@@ -85,6 +85,7 @@ INSTALLED_APPS = [
     'FE',
     'CONTABILIDAD',
     'INFORMATICA',
+    'rest_framework',
 ]
 
 MIDDLEWARE = [

@@ -37,6 +37,7 @@ CSRF_TRUSTED_ORIGINS = [
     'http://0.0.0.0',
     'https://intracoe.incoe.cloud',
     'http://intracoe.incoe.cloud',
+    'https://192.168.100.81',
 ]
 
 ## CONFIGURACION DE CORREOS ##############################
@@ -138,7 +139,7 @@ DATABASES = {
         'NAME': 'intracoe',
         'USER': 'pordefecto',
         'PASSWORD': 'intracoe',
-        'HOST': '192.168.2.29',  # Dirección IP del servidor PostgreSQL
+        'HOST': '192.168.2.209',  # Dirección IP del servidor PostgreSQL
         'PORT': '5432',           # Puerto predeterminado de PostgreSQL
     },
 

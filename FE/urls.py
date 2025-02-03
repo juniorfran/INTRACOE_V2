@@ -3,7 +3,7 @@ from . import views
 
 #renombrar el archivo
 urlpatterns = [
-    ###path("autenticacion/", views.autenticacion, name="autenticacion"),
-    path('autenticacion/', views.AutenticacionAPIView.as_view(), name='autenticacion-api'),
+    path("autenticacion/", views.autenticacion, name="autenticacion"),
+    path('autenticacion_api/', views.AutenticacionAPIView.as_view(), name='autenticacion-api'),
 
 ]

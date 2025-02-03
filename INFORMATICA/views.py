@@ -6,7 +6,7 @@ from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse
 from django.http import HttpResponse
-from weasyprint import HTML
+#from weasyprint import HTML
 
 @login_required
 def listar_bases_datos(request):

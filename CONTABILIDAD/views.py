@@ -1,4 +1,6 @@
 # views.py
+from io import BytesIO
+import io
 import os
 from django.db.models import Q
 from django.shortcuts import render
@@ -9,12 +11,14 @@ from django.contrib.auth.decorators import login_required
 from django.template.loader import render_to_string
 from django.urls import reverse
 from django.http import HttpResponse
-from weasyprint import HTML, CSS
+#from weasyprint import HTML, CSS
+from xhtml2pdf import pisa
 from decimal import Decimal
 import tempfile
 from django.conf import settings
 from django.core.mail import EmailMessage
 from datetime import datetime
+from django.template.loader import get_template
 
 ###################################################################################################################
 
@@ -143,15 +147,15 @@ def generar_pdf_quedan(request, mqdn_id):
         'retencion_total': retencion_total,  # Pasar el total de retención al template
     })
 
-    # Establecer tamaño de página personalizado y márgenes
-    css = CSS(string='''@page { size: A4 landscape; margin: 1cm; }''')
-
-    # Generar el PDF
-    pdf = HTML(string=html_content).write_pdf(stylesheets=[css])
-
-    # Enviar el PDF como respuesta
-    response = HttpResponse(pdf, content_type='application/pdf')
+    # Generar el PDF usando xhtml2pdf
+    response = HttpResponse(content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="quedan_{quedan[1]}.pdf"'
+    pisa_status = pisa.CreatePDF(html_content, dest=response, page_orientation='landscape')
+
+    # Verificar errores en la generación del PDF
+    if pisa_status.err:
+        return HttpResponse(f"Error al generar el PDF: {pisa_status.err}")
+    
     return response
 
 @login_required
@@ -209,7 +213,8 @@ def enviar_quedan(request, mqdn_id):
             })
 
     # Renderizar el template HTML
-    html_content = render_to_string('quedans/quedan_template.html', {
+    template = get_template('quedans/quedan_template.html')
+    context = {
         'quedan': quedan,
         'proveedor': proveedor,
         'detalles': detalles_procesados,
@@ -217,18 +222,25 @@ def enviar_quedan(request, mqdn_id):
         'iva_total': iva_total,
         'percep_total': percep_total,
         'retencion_total': retencion_total,
-    })
+    }
+    html_content = template.render(context)
 
-    # Establecer los estilos CSS para el PDF
-    css = CSS(string='''@page { size: A4 landscape; margin: 1cm; }''')
-    pdf = HTML(string=html_content).write_pdf(stylesheets=[css])
+    # Generar el PDF con xhtml2pdf
+    pdf_buffer = io.BytesIO()
+    pisa_status = pisa.CreatePDF(io.BytesIO(html_content.encode('utf-8')), dest=pdf_buffer, page_orientation='landscape')
+    
+    if pisa_status.err:
+        return HttpResponse('Error al generar el PDF', status=500)
 
-    # Guardar el PDF temporalmente
+    pdf_buffer.seek(0)
+    pdf_content = pdf_buffer.getvalue()
+
+    # Guardar el PDF en un archivo temporal
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as pdf_file:
-        pdf_file.write(pdf)
+        pdf_file.write(pdf_content)
         pdf_file_path = pdf_file.name
 
-    # Construir el asunto y el mensaje del correo
+    # Crear y enviar el correo
     subject = f'Quedan No. {quedan[0]} - {proveedor[0]}'
     message = (
         f'Estimado, adjunto encontrará el PDF con los detalles del quedan.\n\n'
@@ -238,30 +250,22 @@ def enviar_quedan(request, mqdn_id):
         f'Saludos cordiales,\n'
         f'Departamento de Contabilidad'
     )
-
-    # Crear el nombre del archivo con el formato solicitado
     file_name = f"QUEDAN NUM {quedan[0]} - {proveedor[0]}.pdf"
-
-    # Crear el objeto EmailMessage
     email = EmailMessage(
         subject=subject,
         body=message,
         from_email=settings.EMAIL_HOST_USER_QUEDAN,
-        to=[proveedor[1]],  # Correo del proveedor
+        to=[proveedor[1]],
     )
-
-    # Adjuntar el archivo PDF al correo
     with open(pdf_file_path, 'rb') as pdf_attachment:
         email.attach(file_name, pdf_attachment.read(), 'application/pdf')
-    
-    # Enviar el correo
     email.send()
 
-    # Eliminar el archivo temporal después de enviarlo
+    # Eliminar el archivo temporal
     os.remove(pdf_file_path)
 
-    # Responder con el PDF descargable si se desea, o un mensaje de éxito
-    response = HttpResponse(pdf, content_type='application/pdf')
+    # Responder con el PDF descargable
+    response = HttpResponse(pdf_content, content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="quedan_{quedan[1]}.pdf"'
     return response
 
@@ -339,13 +343,19 @@ def enviar_quedan_hoy(request):
                 'retencion_total': retencion_total,
             })
 
-            # Establecer los estilos CSS para el PDF
-            css = CSS(string='''@page { size: A4 landscape; margin: 1cm; }''')
-            pdf = HTML(string=html_content).write_pdf(stylesheets=[css])
+            # Generar el PDF utilizando xhtml2pdf
+            pdf_buffer = BytesIO()
+            pisa_status = pisa.CreatePDF(html_content, dest=pdf_buffer, page_orientation='landscape')
+
+            if pisa_status.err:
+                return HttpResponse('Error al generar el PDF', status=500)
+
+            pdf_buffer.seek(0)
+            pdf_content = pdf_buffer.getvalue()
 
             # Guardar el PDF temporalmente
             with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as pdf_file:
-                pdf_file.write(pdf)
+                pdf_file.write(pdf_content)
                 pdf_file_path = pdf_file.name
 
             # Construir el asunto y el mensaje del correo
@@ -382,3 +392,4 @@ def enviar_quedan_hoy(request):
 
     # Responder con un mensaje de éxito
     return HttpResponse("Se enviaron todos los quedans generados el día de hoy.", content_type="text/plain")
+

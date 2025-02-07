@@ -7,3 +7,4 @@ class AuthResponseSerializer(serializers.Serializer):
     roles = serializers.ListField(child=serializers.CharField(), required=False)
     error = serializers.CharField(required=False)
     details = serializers.CharField(required=False)
+

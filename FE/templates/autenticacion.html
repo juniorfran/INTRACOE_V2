@@ -7,10 +7,10 @@
     <h1 class="mt-5">Autenticación en el Sistema Tributario</h1>
     
     <!-- Formulario de autenticación -->
-    <form action="{% url 'autenticacion' %}" method="post" class="mt-4">
+    <form id="auth-form" class="mt-4">
         {% csrf_token %}
         <div class="mb-3">
-            <label for="user" class="form-label">Usuario</label>
+            <label for="user" class="form-label">Usuario (NIT Empresa)</label>
             <input type="text" class="form-control" id="user" name="user" placeholder="Ingresa tu usuario" required>
         </div>
         <div class="mb-3">
@@ -22,18 +22,119 @@
 
     <!-- Sección para mostrar mensajes de éxito o error -->
     <div id="response-message" class="mt-4"></div>
-</div>
-<script>
-    // Si quieres mostrar el mensaje de respuesta en tiempo real
-    const responseMessage = document.getElementById('response-message');
 
-    function showResponseMessage(data) {
-        if (data.status === 'success') {
-            responseMessage.innerHTML = `<div class="alert alert-success">Token: ${data.token}</div>`;
-        } else {
-            responseMessage.innerHTML = `<div class="alert alert-danger">Error: ${data.message}</div>`;
+    <!-- Tabla para mostrar los tokens registrados -->
+    <h2 class="mt-5">Tokens Registrados</h2>
+    <style>
+        .token-cell {
+            max-width: 200px; /* Ajusta el ancho máximo según tus necesidades */
+            overflow-x: auto; /* Agrega un scroll horizontal si el contenido es muy largo */
+            white-space: nowrap; /* Evita que el texto se divida en varias líneas */
         }
-    }
+    </style>
+    
+    <table class="table table-bordered table-striped mt-3">
+        <thead>
+            <tr>
+                <th>NIT Empresa</th>
+                <th>Token</th>
+                <th>Tipo de Token</th>
+                <th>Roles</th>
+                <th>Fecha de Creación</th>
+                <th>Última Actualización</th>
+                <th>Fecha de Caducidad</th>
+                <th>Estado</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for token in tokens %}
+            <tr>
+                <td>{{ token.nit_empresa }}</td>
+                <td class="token-cell">{{ token.token }}</td>
+                <td>{{ token.token_type }}</td>
+                <td>{{ token.roles|join:", " }}</td>
+                <td>{{ token.created_at }}</td>
+                <td>{{ token.updated_at }}</td>
+                <td>{{ token.fecha_caducidad }}</td>
+                <td>{% if token.activado %}<span class="badge bg-success">Activo</span>{% else %}<span class="badge bg-danger">Inactivo</span>{% endif %}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8" class="text-center">No hay tokens registrados.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Modal Bootstrap para mostrar la respuesta -->
+<div class="modal fade" id="responseModal" tabindex="-1" aria-labelledby="responseModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="responseModalLabel">Resultado de Autenticación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="modal-response-message"></div> <!-- Cambia el id aquí -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function() {
+        $("#auth-form").submit(function(event) {
+            event.preventDefault(); // Evita la recarga de la página
+            
+            var formData = $(this).serialize(); // Serializa los datos del formulario
+            
+            $.ajax({
+                url: "{% url 'autenticacion' %}",
+                type: "POST",
+                data: formData,
+                dataType: "json",
+                success: function(response) {
+                    let modalContent = ""; // Variable para almacenar el contenido del modal
+
+                    if (response.status === "success") {
+                        modalContent = `
+                            <div class="alert alert-success">
+                                <strong>Autenticación Exitosa</strong><br>
+                                <strong>Token:</strong> ${response.token} <br>
+                                <strong>Roles:</strong> ${response.roles.join(", ")}
+                            </div>
+                        `;
+                    } else {
+                        modalContent = `
+                            <div class="alert alert-danger">
+                                <strong>Error:</strong> ${response.message} <br>
+                                <strong>Detalles:</strong> ${response.error || "No especificado"}
+                            </div>
+                        `;
+                    }
+
+                    // Actualiza el contenido del modal
+                    $("#modal-response-message").html(modalContent);
+
+                    // Muestra el modal
+                    $("#responseModal").modal("show");
+                },
+                error: function(xhr) {
+                    // Manejo de errores de conexión
+                    $("#modal-response-message").html(`
+                        <div class="alert alert-danger">
+                            <strong>Error de conexión:</strong> No se pudo conectar con el servidor.
+                        </div>
+                    `);
+                    $("#responseModal").modal("show");
+                }
+            });
+        });
+    });
 </script>
 
 {% endblock content %}

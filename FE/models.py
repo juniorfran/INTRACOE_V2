@@ -5,6 +5,7 @@ from datetime import timedelta
 class Token_data(models.Model):
     nit_empresa = models.CharField(max_length=20, unique=True)  # NIT de la empresa
     password_hacienda = models.CharField(max_length=255)  # Contraseña en texto plano
+    password_privado = models.CharField(max_length=255, default="1")
     token = models.CharField(max_length=255, blank=True, null=True)
     token_type = models.CharField(max_length=50, default='Bearer')
     roles = models.JSONField(default=list)  # Almacena los roles como una lista JSON
@@ -33,3 +34,4 @@ class Token_data(models.Model):
     class Meta:
         verbose_name = "Token Data"
         verbose_name_plural = "Token Data"
+

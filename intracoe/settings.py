@@ -86,6 +86,9 @@ INSTALLED_APPS = [
     'CONTABILIDAD',
     'INFORMATICA',
     'rest_framework',
+    'FE.dte',
+    'widget_tweaks',
+    'django_select2',
 ]
 
 MIDDLEWARE = [
@@ -130,12 +133,12 @@ WSGI_APPLICATION = 'intracoe.wsgi.application'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 DATABASES = {
-    'base_sqlite': {
+    'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
     },
 
-    'default': {
+    'default111': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'intracoe',
         'USER': 'pordefecto',

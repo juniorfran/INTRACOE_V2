@@ -5,9 +5,13 @@
 
 <div class="container">
     <h1 class="mt-5">Autenticación en el Sistema Tributario</h1>
+
+    <a href="{% url 'autenticacion-api' %}" class="btn btn-warning btn-sm me-1">
+        <i class="bi bi-pencil-square"></i> Autenticacion API
+    </a>
     
-    <!-- Formulario de autenticación -->
-    <form id="auth-form" class="mt-4">
+    <!-- Formulario de autenticación con envío tradicional -->
+    <form id="auth-form" action="{% url 'autenticacion' %}" method="post" class="mt-4">
         {% csrf_token %}
         <div class="mb-3">
             <label for="user" class="form-label">Usuario (NIT Empresa)</label>
@@ -21,18 +25,25 @@
     </form>
 
     <!-- Sección para mostrar mensajes de éxito o error -->
-    <div id="response-message" class="mt-4"></div>
+    <div class="mt-4">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    </div>
 
     <!-- Tabla para mostrar los tokens registrados -->
     <h2 class="mt-5">Tokens Registrados</h2>
     <style>
         .token-cell {
-            max-width: 200px; /* Ajusta el ancho máximo según tus necesidades */
+            max-width: 250px; /* Ajusta el ancho máximo según tus necesidades */
             overflow-x: auto; /* Agrega un scroll horizontal si el contenido es muy largo */
             white-space: nowrap; /* Evita que el texto se divida en varias líneas */
         }
     </style>
-    
     <table class="table table-bordered table-striped mt-3">
         <thead>
             <tr>
@@ -66,75 +77,5 @@
         </tbody>
     </table>
 </div>
-
-<!-- Modal Bootstrap para mostrar la respuesta -->
-<div class="modal fade" id="responseModal" tabindex="-1" aria-labelledby="responseModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="responseModalLabel">Resultado de Autenticación</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div id="modal-response-message"></div> <!-- Cambia el id aquí -->
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<script>
-    $(document).ready(function() {
-        $("#auth-form").submit(function(event) {
-            event.preventDefault(); // Evita la recarga de la página
-            
-            var formData = $(this).serialize(); // Serializa los datos del formulario
-            
-            $.ajax({
-                url: "{% url 'autenticacion' %}",
-                type: "POST",
-                data: formData,
-                dataType: "json",
-                success: function(response) {
-                    let modalContent = ""; // Variable para almacenar el contenido del modal
-
-                    if (response.status === "success") {
-                        modalContent = `
-                            <div class="alert alert-success">
-                                <strong>Autenticación Exitosa</strong><br>
-                                <strong>Token:</strong> ${response.token} <br>
-                                <strong>Roles:</strong> ${response.roles.join(", ")}
-                            </div>
-                        `;
-                    } else {
-                        modalContent = `
-                            <div class="alert alert-danger">
-                                <strong>Error:</strong> ${response.message} <br>
-                                <strong>Detalles:</strong> ${response.error || "No especificado"}
-                            </div>
-                        `;
-                    }
-
-                    // Actualiza el contenido del modal
-                    $("#modal-response-message").html(modalContent);
-
-                    // Muestra el modal
-                    $("#responseModal").modal("show");
-                },
-                error: function(xhr) {
-                    // Manejo de errores de conexión
-                    $("#modal-response-message").html(`
-                        <div class="alert alert-danger">
-                            <strong>Error de conexión:</strong> No se pudo conectar con el servidor.
-                        </div>
-                    `);
-                    $("#responseModal").modal("show");
-                }
-            });
-        });
-    });
-</script>
 
 {% endblock content %}

@@ -4,9 +4,18 @@ from rest_framework.views import APIView
 from rest_framework import status
 from .serializers import AuthResponseSerializer
 from django.http import JsonResponse
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from .models import Token_data
 from django.contrib.auth.models import User
+from django.contrib import messages
+from django.utils import timezone
+from datetime import timedelta
+
+
+#importaciones para actividad economica
+from django.urls import reverse_lazy
+from django.views.generic import ListView, DetailView
+from django.views.generic.edit import CreateView, UpdateView, DeleteView
 
 
 class AutenticacionAPIView(APIView):
@@ -85,87 +94,54 @@ class AutenticacionAPIView(APIView):
 
 
 def autenticacion(request):
-    
-    tokens = Token_data.objects.all()
-    max_attempts = 2
-    
-    if "auth_attempts" not in request.session:
-        request.session["auth_attempts"] = 0
-    
-    if request.session["auth_attempts"] >= max_attempts:
-        return JsonResponse({
-            "status": "error",
-            "message": "Se alcanzó el límite de intentos de autenticación permitidos",
-        }, status=403)
+
+    tokens_saves = Token_data.objects.all()
 
     if request.method == "POST":
-        nit_empresa = request.POST.get("user")  # NIT de la empresa (usuario)
-        pwd = request.POST.get("pwd")          # Contraseña de Hacienda
+        nit_empresa = request.POST.get("user")
+        pwd = request.POST.get("pwd")
 
         auth_url = "https://api.dtes.mh.gob.sv/seguridad/auth"
-        headers = {
-            "User-Agent": "MiAplicacionDjango/1.0",
-            "Content-Type": "application/x-www-form-urlencoded",
-        }
-        data = {
-            "user": nit_empresa,
-            "pwd": pwd,
-        }
+        headers = {"User-Agent": "MiAplicacionDjango/1.0"}
+        data = {"user": nit_empresa, "pwd": pwd}
 
         try:
             response = requests.post(auth_url, headers=headers, data=data)
-            response_data = response.json()
+            if response.status_code == 200:
+                response_data = response.json()
+                if response_data.get("status") == "OK":
+                    token_body = response_data["body"]
+                    token = token_body.get("token")
+                    token_type = token_body.get("tokenType", "Bearer")
+                    roles = token_body.get("roles", [])
 
-            request.session["auth_attempts"] += 1
-            request.session.modified = True
+                    # Guardar o actualizar los datos del token en la base de datos
+                    token_data, created = Token_data.objects.update_or_create(
+                        nit_empresa=nit_empresa,
+                        defaults={
+                            'password_hacienda': pwd,
+                            'token': token,
+                            'token_type': token_type,
+                            'roles': roles,
+                            'activado': True,
+                            'fecha_caducidad': timezone.now() + timedelta(days=1)  # Establecer caducidad para 24 horas después
+                        }
+                    )
 
-            if response.status_code == 200 and response_data.get("status") == "OK":
-                request.session["auth_attempts"] = 0
-                token = response_data["body"].get("token")
-                roles = response_data["body"].get("roles", [])
-                token_type = response_data.get("tokenType", "Bearer")
+                    # Si el token es nuevo, enviamos un mensaje de éxito
+                    if created:
+                        messages.success(request, "Autenticación exitosa y token guardado.")
+                    else:
+                        messages.success(request, "Autenticación exitosa y token actualizado.")
 
-                # Guardar los datos de autenticación en el modelo Token_data
-                auth_data, created = Token_data.objects.get_or_create(
-                    nit_empresa=nit_empresa,
-                    defaults={
-                        "password_hacienda": pwd,  # Guardar la contraseña en texto plano
-                        "token": token,
-                        "roles": roles,
-                        "token_type": token_type,
-                    }
-                )
-
-                # Si el registro ya existe, actualizarlo
-                if not created:
-                    auth_data.password_hacienda = pwd
-                    auth_data.token = token
-                    auth_data.roles = roles
-                    auth_data.token_type = token_type
-                    auth_data.save()
-
-                return JsonResponse({
-                    "status": "success",
-                    "token": f"{token_type} {token}",
-                    "roles": roles,
-                })
-
+                    return redirect('autenticacion')
+                else:
+                    messages.error(request, "Error en la autenticación: " + response_data.get("message", "Error no especificado"))
             else:
-                return JsonResponse({
-                    "status": "error",
-                    "message": response_data.get("message", "Error en autenticación"),
-                    "error": response_data.get("error", "No especificado"),
-                }, status=400)
-
+                messages.error(request, "Error en la autenticación.")
         except requests.exceptions.RequestException as e:
-            return JsonResponse({
-                "status": "error",
-                "message": "Error de conexión con el servicio de autenticación",
-                "details": str(e),
-            }, status=500)
-        
-    context = {
-        'tokens':tokens,
-    }
+            messages.error(request, "Error de conexión con el servicio de autenticación.")
 
-    return render(request, "autenticacion.html", context)
+    return render(request, "autenticacion.html", {'tokens':tokens_saves})
+
+

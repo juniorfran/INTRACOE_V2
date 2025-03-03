@@ -10,8 +10,8 @@ import unicodedata
 from django.shortcuts import render, get_object_or_404
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from weasyprint import CSS, HTML
-from decimal import ROUND_HALF_DOWN, ROUND_HALF_UP, Decimal
+#from weasyprint import CSS, HTML
+from decimal import ROUND_HALF_UP, Decimal
 from intracoe import settings
 from .models import Ambiente, CondicionOperacion, DetalleFactura, FacturaElectronica, Modelofacturacion, NumeroControl, Emisor_fe, ActividadEconomica, Producto, Receptor_fe, Tipo_dte, TipoMoneda, TipoUnidadMedida, TiposDocIDReceptor, Municipio
 from FE.models import Token_data
@@ -56,12 +56,12 @@ def cargar_actividades(request):
             try:
                 # Carga el archivo Excel especificando índices de columna
                 data = pd.read_excel(excel_file, usecols="A:B", header=None, names=['codigo', 'descripcion'])
-
+                
                 # Comprueba que los datos no estén vacíos
                 if data.empty:
                     messages.error(request, 'El archivo está vacío.')
                     return render(request, 'actividad_economica/cargar_actividades.html', {'form': form})
-
+                
                 # Itera sobre cada fila y actualiza o crea entradas en la base de datos
                 for _, row in data.iterrows():
                     ActividadEconomica.objects.update_or_create(
@@ -218,7 +218,7 @@ def num_to_letras(numero):
         return f"{palabras} con {decimales:02d}/100 USD"
     except Exception as e:
         return "Conversión no disponible"
-
+    
 
 from decimal import Decimal, ROUND_HALF_UP
 @csrf_exempt
@@ -286,7 +286,7 @@ def generar_factura_view(request):
             productos_ids = data.get('productos_ids', [])
             cantidades = data.get('cantidades', [])
             # En este caso, se asume que el descuento por producto es 0 (se aplica globalmente)
-
+            
             if not numero_control:
                 numero_control = NumeroControl.obtener_numero_control()
             if not codigo_generacion:
@@ -432,23 +432,14 @@ def generar_factura_view(request):
             # Construir el cuerpoDocumento para el JSON con desglose
             cuerpo_documento = []
             for idx, det in enumerate(factura.detalles.all(), start=1):
-                # Precio con IVA (por unidad) y cantidad
-                precio_incl_det = Decimal(det.precio_unitario)  # Precio bruto (con IVA)
-                cantidad_det = Decimal(det.cantidad)
+                # Recalcular (para el JSON) usando los valores ya calculados:
+                precio_neto = (Decimal(det.precio_unitario) / Decimal("1.13")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                iva_unitario = (Decimal(det.precio_unitario) - precio_neto).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                total_neto = (precio_neto * det.cantidad).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                total_iva_item = (iva_unitario * det.cantidad).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                total_con_iva = (Decimal(det.precio_unitario) * det.cantidad).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
-                # Calcular el precio neto unitario con 6 decimales
-                precio_neto_unit = (precio_incl_det / Decimal("1.13")).quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)
-
-                # Calcular totales agregados de la línea con 6 decimales
-                total_incl = (precio_incl_det * cantidad_det).quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)
-                total_net = (total_incl / Decimal("1.13")).quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)
-                # El IVA total se obtiene como la diferencia y se redondea a 6 decimales
-                total_iva_item = (total_incl - total_net).quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)
-
-                # Calcular el total gravado (neto) para la línea
-                venta_gravada = (precio_neto_unit * cantidad_det).quantize(Decimal("0.000001"), rounding=ROUND_HALF_UP)
-
-                print (f"Detalle {idx}: {det.producto.descripcion} - Precio unitario: {precio_incl_det} - Cantidad: {cantidad_det} - Total incluido: {total_incl} - Total neto: {total_net} - Total IVA: {total_iva_item} - Venta gravada: {venta_gravada}")
+                print(f"Item {idx}: IVA unitario = {iva_unitario}, Total IVA = {total_iva_item}, IVA almacenado = {det.iva_item}")
 
                 cuerpo_documento.append({
                     "numItem": idx,
@@ -459,22 +450,26 @@ def generar_factura_view(request):
                     "descripcion": str(det.producto.descripcion),
                     "cantidad": float(det.cantidad),
                     "uniMedida": int(det.unidad_medida.codigo) if det.unidad_medida.codigo.isdigit() else 59,
-                    "precioUni": float(precio_neto_unit),      # Precio neto unitario con 6 decimales
+                    "precioUni": float(precio_neto),      # Precio unitario neto
+                    #"ivaUnitario": float(iva_unitario),     # IVA unitario
+                    #"totalNeto": float(total_neto),         # Total neto por ítem
+                    #"totalIva": float(total_iva_item),       # Total IVA por ítem
+                    #"totalConIva": float(total_con_iva),     # Total con IVA por ítem
                     "montoDescu": float(det.descuento),
                     "ventaNoSuj": float(det.ventas_no_sujetas),
                     "ventaExenta": float(det.ventas_exentas),
-                    "ventaGravada": float(venta_gravada),
-                    "tributos": None,
-                    "psv": float(det.precio_unitario),
+                    "ventaGravada": float(det.ventas_gravadas),
+                    "tributos":["20"], #iva para todos los items
+                    "psv": 0.0,
                     "noGravado": float(det.no_gravado),
-                    "ivaItem": float(total_iva_item)           # IVA total por línea con 6 decimales
+                    "ivaItem": float(total_iva_item)        # IVA total por línea
                 })
 
             factura_json = {
                 "identificacion": {
                     "version": 1,
                     "ambiente": ambiente_obj.codigo,
-                    "tipoDte": "01",
+                    "tipoDte": str(tipo_dte_obj.codigo),
                     "numeroControl": str(factura.numero_control),
                     "codigoGeneracion": str(factura.codigo_generacion),
                     "tipoModelo": 1,
@@ -490,10 +485,10 @@ def generar_factura_view(request):
                     "nit": str(emisor.nit),
                     "nrc": str(emisor.nrc),
                     "nombre": str(emisor.nombre_razon_social),
-                    "codActividad": str(emisor.actividades_economicas.first().codigo) if emisor.actividades_economicas.exists() else "46375",
-                    "descActividad": str(emisor.actividades_economicas.first().descripcion) if emisor.actividades_economicas.exists() else "Venta al por mayor de productos lácteos",
+                    "codActividad": str(emisor.actividades_economicas.first().codigo) if emisor.actividades_economicas.exists() else "",
+                    "descActividad": str(emisor.actividades_economicas.first().descripcion) if emisor.actividades_economicas.exists() else "",
                     "nombreComercial": str(emisor.nombre_comercial),
-                    "tipoEstablecimiento": str(emisor.tipoestablecimiento.codigo) if emisor.tipoestablecimiento else "02",
+                    "tipoEstablecimiento": str(emisor.tipoestablecimiento.codigo) if emisor.tipoestablecimiento else "",
                     "direccion": {
                         "departamento": "05",
                         "municipio": "19",
@@ -507,12 +502,12 @@ def generar_factura_view(request):
                     "codPuntoVenta": "0001",
                 },
                 "receptor": {
-                    "tipoDocumento": str(receptor.tipo_documento.codigo) if receptor.tipo_documento else "13",
+                    "tipoDocumento": str(receptor.tipo_documento.codigo) if receptor.tipo_documento else "",
                     "numDocumento": str(receptor.num_documento),
-                    "nrc": None,
+                    "nrc": receptor.nrc,
                     "nombre": str(receptor.nombre),
-                    "codActividad": None,
-                    "descActividad": None,
+                    "codActividad": "24310",
+                    "descActividad": "undición de hierro y acero",
                     "direccion": {
                         "departamento": "05",
                         "municipio": "19",
@@ -524,8 +519,7 @@ def generar_factura_view(request):
                 "otrosDocumentos": None,
                 "ventaTercero": None,
                 "cuerpoDocumento": cuerpo_documento,
-                # Ajuste en el resumen para incluir el tributo 20 (IVA 13%)
-                "resumen":{
+                "resumen": {
                     "totalNoSuj": float(factura.total_no_sujetas),
                     "totalExenta": float(factura.total_exentas),
                     "totalGravada": float(factura.total_gravadas),
@@ -535,14 +529,6 @@ def generar_factura_view(request):
                     "descuGravada": float(factura.descuento_gravado),
                     "porcentajeDescuento": float(factura.por_descuento),
                     "totalDescu": float(factura.total_descuento),
-                    "tributos": None,
-                    #[
-                    #     {
-                    #         "codigo": "20",
-                    #         "descripcion": "Impuesto al Valor Agregado 13%",
-                    #         "valor": float(factura.total_iva)  # Valor total del IVA 13%
-                    #     }
-                    # ],  # Ajuste: Resumen de tributos
                     "subTotal": float(factura.sub_total),
                     "ivaRete1": float(factura.iva_retenido),
                     "reteRenta": float(factura.retencion_renta),
@@ -554,6 +540,7 @@ def generar_factura_view(request):
                     "saldoFavor": 0.0,
                     "condicionOperacion": int(factura.condicion_operacion.codigo) if factura.condicion_operacion and factura.condicion_operacion.codigo.isdigit() else 1,
                     "pagos": None,
+                    "tributos": None,
                     "numPagoElectronico": None
                 },
                 "extension": {
@@ -589,159 +576,6 @@ def generar_factura_view(request):
 
 
 
-@csrf_exempt
-@transaction.atomic
-def regenerar_json_view(request, factura_id):
-    if request.method == 'POST':
-        try:
-            factura = FacturaElectronica.objects.get(id=factura_id)
-
-            # Reconstruir el cuerpoDocumento basado en los detalles de la factura
-            cuerpo_documento = []
-            for idx, det in enumerate(factura.detalles.all(), start=1):
-                precio_neto = (Decimal(det.precio_unitario) / Decimal("1.13")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-                iva_unitario = (Decimal(det.precio_unitario) - precio_neto).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-                total_neto = (precio_neto * det.cantidad).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-
-                total_iva_item = (iva_unitario * det.cantidad).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-
-
-                print(f"Item {idx}: precio unitario = {det.precio_unitario}, Cantidad = {det.cantidad}, Neto = {precio_neto}")
-                print(f"Item {idx}: IVA unitario = {iva_unitario}, Total IVA = {total_iva_item}, IVA almacenado = {det.iva_item}")
-
-
-                cuerpo_documento.append({
-                    "numItem": idx,
-                    "tipoItem": 1,
-                    "numeroDocumento": None,
-                    "codigo": str(det.producto.codigo),
-                    "codTributo": None,
-                    "descripcion": str(det.producto.descripcion),
-                    "cantidad": float(det.cantidad),
-                    "uniMedida": int(det.unidad_medida.codigo) if det.unidad_medida.codigo.isdigit() else 59,
-                    "precioUni": float(precio_neto),
-                    "montoDescu": float(det.descuento),
-                    "ventaNoSuj": float(det.ventas_no_sujetas),
-                    "ventaExenta": float(det.ventas_exentas),
-                    "ventaGravada": float(det.ventas_gravadas),
-                    "tributos": ["19"],  # Código permitido para IVA (en vez de "20")
-                    "psv": float(det.precio_unitario),
-                    "noGravado": float(det.no_gravado),
-                    "ivaItem": float(total_iva_item)
-                })
-
-            # Reconstruir el JSON completo
-            factura_json = {
-                "identificacion": {
-                    "version": 1,
-                    "ambiente": "01",
-                    "tipoDte": "01",
-                    "numeroControl": str(factura.numero_control),
-                    "codigoGeneracion": str(factura.codigo_generacion),
-                    "tipoModelo": 1,
-                    "tipoOperacion": 1,
-                    "tipoContingencia": None,
-                    "motivoContin": None,
-                    "fecEmi": str(factura.fecha_emision),
-                    "horEmi": factura.hora_emision.strftime('%H:%M:%S'),
-                    "tipoMoneda": str(factura.tipomoneda.codigo) if factura.tipomoneda else "USD"
-                },
-                "documentoRelacionado": None,
-                "emisor": {
-                    "nit": str(factura.dteemisor.nit),
-                    "nrc": str(factura.dteemisor.nrc),
-                    "nombre": str(factura.dteemisor.nombre_razon_social),
-                    "codActividad": str(factura.dteemisor.actividades_economicas.first().codigo) if factura.dteemisor.actividades_economicas.exists() else "",
-                    "descActividad": str(factura.dteemisor.actividades_economicas.first().descripcion) if factura.dteemisor.actividades_economicas.exists() else "",
-                    "nombreComercial": str(factura.dteemisor.nombre_comercial),
-                    "tipoEstablecimiento": str(factura.dteemisor.tipoestablecimiento.codigo) if factura.dteemisor.tipoestablecimiento else "",
-                    "direccion": {
-                        "departamento": "05",
-                        "municipio": "19",
-                        "complemento": factura.dteemisor.direccion_comercial
-                    },
-                    "telefono": str(factura.dteemisor.telefono),
-                    "correo": str(factura.dteemisor.email),
-                    "codEstableMH": str(factura.dteemisor.codigo_establecimiento or "M001"),
-                    "codEstable": "0001",
-                    "codPuntoVentaMH": str(factura.dteemisor.codigo_punto_venta or "P001"),
-                    "codPuntoVenta": "0001",
-                },
-                "receptor": {
-                    "tipoDocumento": str(factura.dtereceptor.tipo_documento.codigo) if factura.dtereceptor.tipo_documento else "",
-                    "numDocumento": str(factura.dtereceptor.num_documento),
-                    "nrc": factura.dtereceptor.nrc,
-                    "nombre": str(factura.dtereceptor.nombre),
-                    "codActividad": "24310",
-                    "descActividad": "undición de hierro y acero",
-                    "direccion": {
-                        "departamento": "05",
-                        "municipio": "19",
-                        "complemento": factura.dtereceptor.direccion or ""
-                    },
-                    "telefono": factura.dtereceptor.telefono or "",
-                    "correo": factura.dtereceptor.correo or ""
-                },
-                "otrosDocumentos": None,
-                "ventaTercero": None,
-                "cuerpoDocumento": cuerpo_documento,
-                "resumen": {
-                    "totalNoSuj": float(factura.total_no_sujetas),
-                    "totalExenta": float(factura.total_exentas),
-                    "totalGravada": float(factura.total_gravadas),
-                    "subTotalVentas": float(factura.sub_total_ventas),
-                    "descuNoSuj": float(factura.descuen_no_sujeto),
-                    "descuExenta": float(factura.descuento_exento),
-                    "descuGravada": float(factura.descuento_gravado),
-                    "porcentajeDescuento": float(factura.por_descuento),
-                    "totalDescu": float(factura.total_descuento),
-                    "subTotal": float(factura.sub_total),
-                    "ivaRete1": float(factura.iva_retenido),
-                    "reteRenta": float(factura.retencion_renta),
-                    "montoTotalOperacion": float(factura.total_operaciones),
-                    "totalNoGravado": float(factura.total_no_gravado),
-                    "totalPagar": float(factura.total_pagar),
-                    "totalLetras": factura.total_letras,
-                    "totalIva": float(factura.total_iva),
-                    "saldoFavor": 0.0,
-                    "condicionOperacion": int(factura.condicion_operacion.codigo) if factura.condicion_operacion and factura.condicion_operacion.codigo.isdigit() else 1,
-                    "pagos": None,
-                    "tributos": [
-                        {
-                            "codigo": "19",
-                            "descripcion": "Impuesto al Valor Agregado",
-                            "valor": float(factura.total_iva)
-                        }
-                    ],
-                    "numPagoElectronico": None
-                },
-                "extension": {
-                    "nombEntrega": None,
-                    "docuEntrega": None,
-                    "nombRecibe": None,
-                    "docuRecibe": None,
-                    "observaciones": factura.json_original.get("extension", {}).get("observaciones", ""),
-                    "placaVehiculo": None
-                },
-                "apendice": None,
-            }
-
-            # Actualizar la factura con el nuevo JSON y guardarlo en disco
-            factura.json_original = factura_json
-            factura.save()
-
-            json_path = os.path.join("FE/json_facturas", f"{factura.numero_control}.json")
-            os.makedirs(os.path.dirname(json_path), exist_ok=True)
-            with open(json_path, "w", encoding="utf-8") as f:
-                json.dump(factura_json, f, indent=4, ensure_ascii=False)
-
-            return JsonResponse({"mensaje": "JSON regenerado correctamente.",
-                                 "json":factura_json
-                                 })
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=400)
-    return JsonResponse({"error": "Método no permitido"}, status=405)
-
 
 
 #############################################################################################################
@@ -767,7 +601,7 @@ def firmar_factura_view(request, factura_id):
 
     if not os.path.exists(CERT_PATH):
         return JsonResponse({"error": "No se encontró el certificado en la ruta especificada."}, status=400)
-
+    
     # Verificar y formatear el JSON original de la factura
     try:
         if isinstance(factura.json_original, dict):
@@ -793,14 +627,14 @@ def firmar_factura_view(request, factura_id):
 
     try:
         response = requests.post(FIRMADOR_URL, json=payload, headers=headers)
-
+        
         # Capturamos la respuesta completa
         try:
             response_data = response.json()
         except Exception as e:
             # En caso de error al parsear el JSON, se guarda el texto crudo
             response_data = {"error": "No se pudo parsear JSON", "detalle": response.text}
-
+        
         # Guardar toda la respuesta en la factura para depuración (incluso si hubo error)
         factura.json_firmado = response_data
         factura.firmado = True
